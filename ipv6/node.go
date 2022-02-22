@@ -465,7 +465,7 @@ func (me *trieNode) del(key Prefix, opts deleteOpts) (newHead *trieNode, err err
 		return me, fmt.Errorf("cannot delete from a nil")
 	}
 
-	result, _, _, _ := compare(me.Prefix, key)
+	result, _, _, child := compare(me.Prefix, key)
 	switch result {
 	case compareSame:
 		if opts.flatten {
@@ -487,6 +487,35 @@ func (me *trieNode) del(key Prefix, opts deleteOpts) (newHead *trieNode, err err
 		return newNode, nil
 
 	case compareContains:
+		if me.isActive && opts.flatten {
+			// TODO This is for sets. Break it out of here.
+			// split this prefix into ranges and insert them
+			super, sub := me.Prefix.Range(), key.Range()
+			remainingRanges := super.Minus(sub)
+			var s *setNode
+			if len(remainingRanges) == 1 {
+				s = setNodeFromRange(remainingRanges[0])
+			} else {
+				a := setNodeFromRange(remainingRanges[0])
+				b := setNodeFromRange(remainingRanges[1])
+				s = a.Union(b)
+			}
+			return (*trieNode)(s), nil
+		}
+		// Delete recursively.
+		newChild, err := me.children[child].del(key, opts)
+		if err != nil {
+			return me, err
+		}
+
+		if newChild == nil && !me.isActive {
+			// Promote the other child up
+			return me.children[reverseChild(child)], nil
+		}
+		newNode := me.copyMutate(func(n *trieNode) {
+			n.children[child] = newChild
+		})
+		return newNode, nil
 
 	case compareIsContained:
 		if opts.flatten {
