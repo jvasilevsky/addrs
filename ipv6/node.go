@@ -48,9 +48,9 @@ func intMax(a, b int) int {
 // | true    | false | 1     | `longer` belongs in `shorter`'s `children[1]`
 // | true    | true  | NA    | `shorter` and `longer` are the same key
 func contains(shorter, longer Prefix) (matches, exact bool, common uint32, child int) {
-	mask := uint32(0xffffffff) << (32 - shorter.length)
+	mask := uint128{0xffffffffffffffff, 0xffffffffffffffff}.leftShift(int(128 - shorter.length))
 
-	matches = shorter.addr.ui.and(uint128{0, uint64(mask)}) == longer.addr.ui.and(uint128{0, uint64(mask)})
+	matches = shorter.addr.ui.and(mask) == longer.addr.ui.and(mask)
 	if matches {
 		exact = shorter.length == longer.length
 		common = shorter.length
